@@ -2,37 +2,39 @@ package tbx2rdf;
 
 //JAVA
 import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+//TBX2RDF
+import java.io.PrintStream;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.IOException;
-import java.io.InputStream;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NamedNodeMap;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
-import org.xml.sax.EntityResolver;
-import org.xml.sax.SAXException;
 
-//JENA
-import org.openjena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFFormat;
+import org.apache.log4j.Logger;
+//JENA
+import org.openjena.riot.Lang;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.xml.sax.EntityResolver;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Property;
@@ -40,29 +42,22 @@ import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.vocabulary.DCTerms;
 import com.hp.hpl.jena.vocabulary.RDF;
 
-//TBX2RDF
-import java.io.PrintStream;
-import java.util.Collections;
-import org.apache.log4j.Logger;
 import tbx2rdf.datasets.iate.SubjectFields;
-import tbx2rdf.vocab.ONTOLEX;
-import tbx2rdf.vocab.SKOS;
-import tbx2rdf.vocab.TBX;
-import tbx2rdf.types.LexicalEntry;
-import tbx2rdf.types.Describable;
-import tbx2rdf.types.MartifHeader;
-import tbx2rdf.types.TBX_Terminology;
-import tbx2rdf.types.Descrip;
-import tbx2rdf.types.XReference;
-import tbx2rdf.types.Term;
 import tbx2rdf.types.AdminGrp;
 import tbx2rdf.types.AdminInfo;
+import tbx2rdf.types.Describable;
+import tbx2rdf.types.Descrip;
 import tbx2rdf.types.DescripGrp;
 import tbx2rdf.types.DescripNote;
-import tbx2rdf.types.MartifHeader.*;
+import tbx2rdf.types.LexicalEntry;
+import tbx2rdf.types.MartifHeader;
+import tbx2rdf.types.MartifHeader.FileDesc;
+import tbx2rdf.types.MartifHeader.TitleStmt;
 import tbx2rdf.types.Note;
 import tbx2rdf.types.NoteLinkInfo;
 import tbx2rdf.types.Reference;
+import tbx2rdf.types.TBX_Terminology;
+import tbx2rdf.types.Term;
 import tbx2rdf.types.TermComp;
 import tbx2rdf.types.TermCompGrp;
 import tbx2rdf.types.TermCompList;
@@ -71,12 +66,15 @@ import tbx2rdf.types.TermNoteGrp;
 import tbx2rdf.types.TransacGrp;
 import tbx2rdf.types.TransacNote;
 import tbx2rdf.types.Transaction;
+import tbx2rdf.types.XReference;
 import tbx2rdf.types.abs.impID;
 import tbx2rdf.types.abs.impIDLangTypeTgtDtyp;
 import tbx2rdf.utils.XMLUtils;
 import tbx2rdf.vocab.DC;
 import tbx2rdf.vocab.IATE;
 import tbx2rdf.vocab.LIME;
+import tbx2rdf.vocab.ONTOLEX;
+import tbx2rdf.vocab.TBX;
 
 
 /**
@@ -904,6 +902,24 @@ public class TBX2RDF_Converter {
         }
     }
     
+    /**
+     * Converts a XML TBX file (handling large files...)
+     * It does not hold in memory the whole dataset, but parses it as it comes.
+     * 
+     * A TBX file root element is called "martif". It has two childre: marthifHeader and text
+     * 
+     * 
+     * @param file Path to the input file
+     * @param namespace data namespace
+     * @param mappings Mappings
+     * @return The TBX terminology
+     * 
+     * @deprecated use {@link #convertAndSerializeLargeFile(String, PrintStream, String, Mappings)}
+     */
+    @Deprecated
+    public TBX_Terminology convertAndSerializeLargeFile(String file, PrintStream fos, Mappings mappings) {
+    	return convertAndSerializeLargeFile(file, fos, Main.DATA_NAMESPACE, mappings);
+    }
     
     /**
      * Converts a XML TBX file (handling large files...)
@@ -913,11 +929,12 @@ public class TBX2RDF_Converter {
      * 
      * 
      * @param file Path to the input file
+     * @param namespace data namespace
      * @param mappings Mappings
      * @return The TBX terminology
      */
-    public TBX_Terminology convertAndSerializeLargeFile(String file, PrintStream fos, Mappings mappings) {
-        String resourceURI = new String(Main.DATA_NAMESPACE);
+    public TBX_Terminology convertAndSerializeLargeFile(String file, PrintStream fos, String namespace, Mappings mappings) {
+        String resourceURI = namespace;
         FileInputStream inputStream = null;
         Scanner sc = null;
         int count = 0;
@@ -930,7 +947,7 @@ public class TBX2RDF_Converter {
             InputStream xmlInput = new FileInputStream(file);
             SAXParserFactory factory = SAXParserFactory.newInstance();
             SAXParser saxParser = factory.newSAXParser();
-            handler = new SAXHandler(mappings);
+            handler = new SAXHandler(namespace, mappings);
             saxParser.parse(xmlInput, handler);
             lexicons = handler.getLexicons();
             xmlInput.close();
@@ -1007,7 +1024,7 @@ public class TBX2RDF_Converter {
                             Term term = processTermEntry(root, mappings);
                             Model model = ModelFactory.createDefaultModel();
                             TBX.addPrefixesToModel(model);
-                            model.setNsPrefix("", Main.DATA_NAMESPACE);
+                            model.setNsPrefix("", namespace);
                             final Resource rterm = term.getRes(model);
                             rterm.addProperty(RDF.type, ONTOLEX.Concept);
                             term.toRDF(model, rterm);

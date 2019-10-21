@@ -62,11 +62,9 @@
 			<version>1.0</version>
 		</dependency>
 		<dependency>
-			<groupId>tbxcheck-1.2.9</groupId>
+			<groupId>tbxcheck</groupId>
 			<artifactId>tbxcheck</artifactId>
 			<version>1.2.9</version>
-			<scope>system</scope>
-			<systemPath>${project.basedir}/doc/reference/TBX-resources/tbxcheck-1.2.9.jar</systemPath>
 		</dependency>
 
 	</dependencies>
@@ -193,7 +191,7 @@
 								<copy file="tbx2rdfConversion.sh" todir="${project.build.directory}/forZip" />
 								<copy file="tbx2rdfConversion.bat" todir="${project.build.directory}/forZip" />
 								<copy file="mappings.default" todir="${project.build.directory}/forZip" />
-								<copy file="readme.txt" todir="${project.build.directory}/forZip" />
+								<copy file="README.md" todir="${project.build.directory}/forZip" />
 								<copy file="log4j.properties" todir="${project.build.directory}/forZip" />
 
 								<copy file="${project.build.directory}/${project.artifactId}-${project.version}.jar" 

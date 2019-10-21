@@ -1,11 +1,13 @@
 package tbx2rdf;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import org.xml.sax.Attributes;
+import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
@@ -13,6 +15,7 @@ import org.xml.sax.helpers.DefaultHandler;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.sparql.function.library.namespace;
 import com.hp.hpl.jena.vocabulary.RDF;
 
 import tbx2rdf.datasets.lexvo.LexvoManager;
@@ -20,7 +23,6 @@ import tbx2rdf.types.MartifHeader;
 import tbx2rdf.types.Term;
 import tbx2rdf.vocab.DC;
 import tbx2rdf.vocab.LIME;
-import tbx2rdf.vocab.ONTOLEX;
 
 
 /**
@@ -29,6 +31,12 @@ import tbx2rdf.vocab.ONTOLEX;
  */
 public class SAXHandler extends DefaultHandler {
 
+	private static final String TBX_DTD_SYSTEM_ID = "TBXcoreStructV02.dtd";
+	private static final String TBX_DTD_SYSTEM_ID_SUFFIX = "/" + TBX_DTD_SYSTEM_ID;
+	
+	///Namespace
+	private String namespace;
+	
     ///Mappings
     private Mappings mappings;
     ///
@@ -45,13 +53,34 @@ public class SAXHandler extends DefaultHandler {
 
     /**
      * Initializes the handler
+     * @param _namespace The namespace to be given
      * @param _mappings The mappings to be given
      */
-    public SAXHandler(Mappings _mappings) {
+    public SAXHandler(String _namespace, Mappings _mappings) {
         super();
+        namespace = _namespace;
         mappings = _mappings;
     }
-
+    
+    /**
+     * Initializes the handler
+     * @param _namespace The namespace to be given
+     * @deprecated Use {@link #SAXHandler(String, Mappings)}
+     */
+    @Deprecated
+    public SAXHandler(Mappings _mappings) {
+    	this(Main.DATA_NAMESPACE, _mappings);
+    }
+    
+	@Override
+	public InputSource resolveEntity(String publicId, String systemId) throws IOException, SAXException {
+		if (systemId != null && systemId.endsWith(TBX_DTD_SYSTEM_ID_SUFFIX)) {
+			return new InputSource(this.getClass().getResource(TBX_DTD_SYSTEM_ID).toExternalForm());
+		} else {
+			return super.resolveEntity(publicId, systemId);
+		}
+	}
+    
     /**
      * Retrieves the MartifHeader in the TBX file
      */
@@ -85,7 +114,7 @@ public class SAXHandler extends DefaultHandler {
         {
             if (lexicons.containsKey(language))
                 continue;
-            final Resource lexicon = lexiconsModel.createResource(Main.DATA_NAMESPACE + language);
+            final Resource lexicon = lexiconsModel.createResource(namespace + language);
             Resource rlan=LexvoManager.mgr.getLexvoFromISO2(language);
             //lexicon.addProperty(ONTOLEX.language, rlan);    //before it was the mere constant "language" //OLD
             lexicon.addProperty(DC.language, rlan);    //before it was the mere constant "language"

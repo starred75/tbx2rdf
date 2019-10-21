@@ -221,7 +221,7 @@ public class Main {
                 System.err.println("output file could not be open");
                 return false;
             }
-            converter.convertAndSerializeLargeFile(input_file, fos, mappings);
+            converter.convertAndSerializeLargeFile(input_file, fos, Main.DATA_NAMESPACE, mappings);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             return false;

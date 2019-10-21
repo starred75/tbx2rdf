@@ -75,7 +75,7 @@ public abstract class impID {
 
     }
 
-    protected static final RDFDatatype XMLLiteral = NodeFactory.getType(RDF.getURI() + "#XMLLiteral");
+    protected static final RDFDatatype XMLLiteral = NodeFactory.getType(RDF.getURI() + "XMLLiteral");
 
     private static void removeWhitespaceNode(Node node) {
         if (node instanceof Element) {
